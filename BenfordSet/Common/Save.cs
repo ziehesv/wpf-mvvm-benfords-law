@@ -14,28 +14,27 @@ namespace BenfordSet.Common
 {
     internal class Save
     {
-        private string _initialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        private string _allowedFiles = "txt files (*.txt)|*.txt|All files (*.*)|*.*";
+        private readonly string _initialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        private const string _allowedFiles = "txt files (*.txt)|*.txt|All files (*.*)|*.*";
 
-        private ProgrammEvents _events;
-        public ProgrammEvents ProgrammEvents { get => _events; set => _events = value; }
+        public event EventHandler FileHasBeenSaved;
+        public event EventHandler FileHasNotBeenSaved;
 
         public bool IsText { get; set; }
-        public string Destination { get; set; }
-        public string OutputResult { get; set; }
+        public string Destination { get; set; } = string.Empty;
+        public string? OutputResult { get; set; }
 
         public Save(string outputresults, bool istext)
-        { 
-            OutputResult = outputresults; IsText = istext;
-            _events = new ProgrammEvents();
-            _events.SaveSuccessful += _events.FileHasBeenSaved;
-            _events.SaveNotSuccessful += _events.FileHasNotBeenSaved;
-        }       
+        {
+            OutputResult = outputresults;
+            IsText = istext;
+
+        }
 
 
         public void OpenSaveDialog()
         {
-            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            SaveFileDialog saveFileDialog = new();
             saveFileDialog.InitialDirectory = _initialDirectory;
             saveFileDialog.Filter = _allowedFiles;
 
@@ -45,31 +44,32 @@ namespace BenfordSet.Common
 
         public void SaveFile()
         {
-            if(IsText && CheckDestination())
+            if (IsText && CheckDestination())
             {
                 SaveAsText();
-                _events.OnSaveSuccessful();
+                this.FileHasBeenSaved?.Invoke(this, new EventArgs());
             }
 
-            else if(!IsText && CheckDestination())
+            else if (!IsText && CheckDestination())
             {
                 SaveAsPdf();
-                _events.OnSaveSuccessful();
+                this.FileHasBeenSaved?.Invoke(this, new EventArgs());
             }
             else
-                _events.OnSaveNotSuccessful();
+                this.FileHasNotBeenSaved?.Invoke(this, new EventArgs());
+
         }
 
         private bool CheckDestination() => !string.IsNullOrEmpty(Destination);
 
-        private void SaveAsPdf() 
+        private void SaveAsPdf()
         {
             Document doc = new Document();
             Page page = new Page(PageSize.A4, PageOrientation.Landscape);
             doc.Pages.Add(page);
 
-            ceTe.DynamicPDF.PageElements.Label label = new 
-                ceTe.DynamicPDF.PageElements.Label(OutputResult, 0, 0, 504, 100, Font.Helvetica, 10, TextAlign.Left);
+            ceTe.DynamicPDF.PageElements.Label label = new
+            ceTe.DynamicPDF.PageElements.Label(OutputResult, 0, 0, 504, 100, Font.Helvetica, 10, TextAlign.Left);
 
             page.Elements.Add(label);
             doc.Draw(Destination);
@@ -77,10 +77,8 @@ namespace BenfordSet.Common
 
         private void SaveAsText()
         {
-            using (StreamWriter fs = new StreamWriter(Destination))
-            {
-                fs.Write(OutputResult);
-            }
+            using StreamWriter fs = new(Destination);
+            fs.Write(OutputResult);
         }
     }
 }
